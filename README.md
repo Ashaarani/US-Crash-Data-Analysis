@@ -18,7 +18,7 @@ This project analyzes a US crash dataset, performing various EDA techniques and 
 
 ## Data
 
-The dataset used in this project is available [here](path_to_dataset). The dataset includes information on crashes, such as year, age of individuals involved, severity, and more.
+The dataset used in this project is available [here](https://github.com/Ashaarani/US-crash-Data-Analysis/US_crashdata.csv). The dataset includes information on crashes, such as year, age of individuals involved, severity, and more.
 
 ## Exploratory Data Analysis
 
