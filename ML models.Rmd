@@ -1,0 +1,177 @@
+---
+title: "ML Models"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+# Load data
+library(tidyverse)
+library(dplyr)
+crash_dataset <- read.csv("/Users/asharani/Downloads/US_crashdata.csv", header=TRUE)
+head(crash_dataset, 100)
+```
+
+#preprocessing
+
+```{r}
+crash_dataset$x_mais <- as.factor(crash_dataset$x_mais)
+crash_dataset$x_year <- as.factor(crash_dataset$x_year)
+crash_dataset$x_caseno <- as.factor(crash_dataset$x_caseno)
+crash_dataset$x_caseid <- as.factor(crash_dataset$x_caseid)
+crash_dataset$x_role <- as.factor(crash_dataset$x_role)
+crash_dataset$x_sex <- as.factor(crash_dataset$x_sex)
+summary(crash_dataset)
+```
+
+```{r}
+
+# Subset data
+library(magrittr)
+subset_data <- crash_dataset %>% select(x_year,x_vehno,x_age ,x_occno ,x_sex,x_role, x_accseq,x_occno, x_mais)
+
+```
+
+```{r}
+library(rsample)
+set.seed(664)
+# Split the data into a training and test set
+Crash_data_split <- initial_split(subset_data, prop = 0.7, strata = x_mais )
+Crash_data_train <- training(Crash_data_split)
+Crash_data_test <- testing(Crash_data_split)
+
+
+```
+
+```{r}
+#Multinomial Logistic regression Model
+library(nnet)
+library(glmnet)
+library(caret)
+library(nnet)
+
+# Fit multinomial logistic regression model
+model <- nnet::multinom(x_mais ~ x_year + x_vehno + x_age +x_occno +x_sex +x_role+ x_accseq+x_occno, data = Crash_data_train)
+
+# Predict on test set
+predictions <- predict(model, newdata = Crash_data_test, type = "probs")
+predicted_classes <- apply(predictions, 1, which.max)
+
+
+```
+
+```{r}
+# Set up the training control with 5-fold cross-validation
+
+trControl <- trainControl(method = "cv", number = 5)
+
+# Fit the multinomial logistic regression model using caret package
+model <- train(x, y, method = "multinom", trControl = trControl)
+
+# Print the model's accuracy and other performance metrics
+print(model)
+```
+
+```{r}
+# Evaluate the model 
+
+library(pROC)
+#confusion matrix
+confusion_matrix <- table(Crash_data_test$x_mais, predicted_classes)
+
+#Accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+
+#Precision
+weighted_precision <- weighted.mean(diag(confusion_matrix) / colSums(confusion_matrix))
+
+#Recall
+weighted_recall <- weighted.mean(diag(confusion_matrix) / rowSums(confusion_matrix))
+
+#F1 score
+f1_score <- 2 * weighted_precision * weighted_recall / (weighted_precision + weighted_recall)
+
+#AUC
+auc <- multiclass.roc(Crash_data_test$x_mais, predictions)$auc
+
+```
+
+```{r}
+# Print evaluation metrics
+
+cat("Accuracy:", round(accuracy, 3), "\n")
+cat("Weighted precision:", round(weighted_precision, 3), "\n")
+cat("Weighted recall:", round(weighted_recall, 3), "\n")
+cat("F1-score:", round(f1_score, 3), "\n")
+cat("AUC:", round(auc, 3), "\n")
+```
+
+```{r}
+#Random Forest Model
+
+library(randomForest)
+
+# Create a binary target variable
+crash_dataset$x_mais <- ifelse(crash_dataset$x_mais == 6, "Fatal", "Non-Fatal")
+
+
+# Build the random forest model
+model <- randomForest(x_mais ~ . -x_age, data = Crash_data_train, ntree = 500, mtry = 2)
+
+# Make predictions on the test set
+predictions <- predict(model, newdata = Crash_data_test)
+
+# Evaluate the model performance
+table(predictions, Crash_data_test$x_mais)
+
+```
+
+```{r}
+#Evaluate the Model
+
+library(pROC)
+# Calculate confusion matrix
+confusion_matrix <- table(Crash_data_test$x_mais, predictions)
+confusion_matrix
+
+# Calculate accuracy
+accuracy <- sum(diag(confusion_matrix))/sum(confusion_matrix)
+accuracy
+
+```
+
+```{r}
+
+# Print the results
+cat("Accuracy: ", accuracy, "\n")
+cat("Weighted Precision: ", weighted_precision, "\n")
+cat("Weighted Recall: ", weighted_recall, "\n")
+cat("F1-score: ", f1_score, "\n")
+cat("AUC: ", auc, "\n")
+```
+
+```{r}
+#Decision tree Model
+library(rpart)
+# Train the decision tree model
+model_dt <- rpart(x_mais ~ ., data = Crash_data_train, method = "class")
+
+# Make predictions on test data
+dt_pred <- predict(model_dt, newdata = Crash_data_test, type = "class")
+
+# Evaluate model performance
+conf_mat <- table(dt_pred, Crash_data_test$x_mais)
+precision <- sum(diag(conf_mat))/sum(conf_mat)
+recall <- sum(diag(conf_mat))/sum(conf_mat[,2])
+f1_score <- 2 * precision * recall / (precision + recall)
+accuracy <- sum(diag(conf_mat))/sum(conf_mat)
+auc <- NULL # Decision trees do not have a probability output to calculate AUC
+
+# Print the results
+cat("Accuracy: ", accuracy, "\n")
+cat("Weighted Precision: ", precision, "\n")
+cat("Weighted Recall: ", recall, "\n")
+cat("F1-score: ", f1_score, "\n")
+cat("AUC: ", auc, "\n")
+```
